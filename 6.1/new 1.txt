@@ -1,0 +1,251 @@
+# construct.py
+import random
+import logging
+import json
+import multiprocessing
+import time
+import math
+from collections import defaultdict
+import heapq
+
+# Local imports - assuming all files are in the same directory
+import utils
+import analysis
+import graph
+import laminate
+import prodigal
+import formulas
+
+# Constants (moved to config.py)
+
+def construct_superpermutation(n, config):
+    """Constructs a superpermutation for a given n, using the specified configuration.
+
+    This is the main entry point for the superpermutation construction process. It
+    implements the iterative n-building approach, starting from n=1 and working up
+    to the target n value.
+
+    Args:
+        n (int): The target n value.
+        config (dict): A dictionary containing configuration parameters.
+
+    Returns:
+        str: The (hopefully minimal) superpermutation string, or None if construction fails.
+    """
+    utils.setup_logging()
+    random.seed(config["seed"])
+
+    # Initialize data structures (empty, or loaded from previous n if available)
+    winners = defaultdict(float)  # Using defaultdict for easier updates
+    losers = defaultdict(float)
+    layout_memory = {} #Using a standard dictionary, as LayoutMemory has been deprecated.
+    prodigal_manager = prodigal.ProdigalManager(n)  # Manage prodigals
+    laminates = {}  # { (n, k): [list of laminates] }
+    anti_laminates = {}
+    best_known_length = float('inf')  # Start with infinity
+    best_known_superpermutation = ""
+
+    for current_n in range(1, n + 1):
+        logging.info(f"Constructing superpermutation for n = {current_n}")
+        start_time = time.time()
+
+        # --- Data Loading/Initialization (for current_n) ---
+        # Load data from the previous n, if available.  Adapt the keys/structures as needed.
+        if current_n > 1:
+            prev_n = current_n - 1
+            prev_winners, prev_losers = analysis.calculate_winners_losers([best_known_superpermutation], prev_n) #Use best from last run.
+            for kmer, weight in prev_winners.items():
+                winners[(prev_n, kmer)] = weight
+            for kmer, weight in prev_losers.items():
+                losers[(prev_n, kmer)] = weight
+            # layout_memory = ...  # Adapt layout memory (if applicable)
+            # prodigal_manager.load_prodigals(prev_n)  # Load prodigals from previous n
+            # laminates[prev_n] = ... # Load/adapt laminates
+            # anti_laminates[prev_n] = ... # Load/adapt anti-laminates
+            #Adapt MegaWinners/MegaLosers
+            best_known_superpermutation = "" #Clear, so we can build from the ground up.
+
+        if current_n <= 5:
+            # --- Base Cases (n <= 5) ---  Use direct generation
+            superpermutation = utils.generate_n_minus_1_superpermutation(current_n, config["seed"])
+            if superpermutation:
+                logging.info(f"Generated minimal superpermutation for n={current_n} (length: {len(superpermutation)})")
+                best_known_length = len(superpermutation)
+                best_known_superpermutation = superpermutation
+                # Analyze and extract data, update data structures for next iteration
+            else:
+                logging.error(f"Failed to generate superpermutation for n={current_n}")
+                return None
+
+        else:
+            # --- Main Construction Loop (n >= 6) ---
+            constraint_laminates = []  # Initialize constraint laminates
+            target_length =  formulas.sp_v14(current_n, best_known_length) if current_n > 1 else 1 # Get a good starting length.
+            logging.info(f"Target Length:  {target_length}")
+            missing_permutations = set(utils.hash_permutation(p) for p in utils.generate_permutations(current_n))
+
+            #Initialize variables:
+            superpermutation = ""
+            last_improvement_iteration = 0
+            stuck_count = 0
+
+            while True:  # Continue until a valid superpermutation is found or max iterations reached
+                # 1. Select a Strategy (dynamically, based on config and current state)
+                strategy = select_strategy(current_n, config, laminates, anti_laminates)
+                logging.info(f"Selected strategy: {strategy}")
+
+                # 2. Generate Hypothetical Superpermutation
+                hypothetical_sp = generate_hypothetical_superpermutation(current_n, strategy, prodigal_manager,
+                                                                        winners, losers, layout_memory,
+                                                                        target_length, config["seed"],
+                                                                        laminates, anti_laminates,
+                                                                        constraint_laminates, missing_permutations)
+
+                if not hypothetical_sp:
+                    logging.warning(f"Hypothetical generation failed (strategy: {strategy}).")
+                    continue  # Try again with a different strategy/seed
+
+                # 3. Bouncing Batch Test (Simplified - No multiprocessing in this version)
+                is_valid, length, new_winners, new_losers, _ = bouncing_batch_test(
+                    hypothetical_sp, current_n, config["grid_dimensions"], prodigal_manager,
+                    None, anti_laminates, constraint_laminates, winners, losers, layout_memory
+                )  # No layout_memory_filename for single-process
+
+                # 4. Data Update and Analysis
+                analysis.update_winners_losers(winners, losers, new_winners, new_losers)
+                new_anti_prodigals = analysis.identify_anti_prodigals([hypothetical_sp], current_n, current_n - 1, 0.6, winners, losers, 2)  # Example Thresholds
+                #Update based on analysis
+                if new_anti_prodigals:
+                    new_anti_laminate = laminate.create_anti_laminate(new_anti_prodigals, current_n, current_n-1)
+                    if (current_n, current_n-1) not in anti_laminates:
+                        anti_laminates[(current_n, current_n-1)] = []
+                    anti_laminates[(current_n, current_n-1)].append(new_anti_laminate)
+
+                    new_anti_laminate = laminate.create_anti_laminate(new_anti_prodigals, current_n, current_n-2)
+                    if (current_n, current_n-2) not in anti_laminates:
+                        anti_laminates[(current_n, current_n-2)] = []
+                    anti_laminates[(current_n, current_n-2)].append(new_anti_laminate)
+
+                #Update Prodigals
+                new_prodigals = analysis.find_prodigal_results(hypothetical_sp, current_n)
+                for prodigal_seq in new_prodigals:
+                    prodigal_manager.add_prodigal(prodigal_seq, current_n, "dynamic_generation", winners, losers, layout_memory, laminates.get((current_n, current_n-1),[]), anti_laminates.get((current_n, current_n-1), []))
+
+                # 5. Check for Completion and Validity
+                if is_valid:
+                    logging.info(f"Valid superpermutation found for n={current_n}, length={length} using strategy {strategy}")
+
+                    if length < best_known_length:
+                        best_known_length = length
+                        best_known_superpermutation = hypothetical_sp
+                        logging.info(f"New best superpermutation found for n={current_n}! Length: {best_known_length}")
+                        # Save the new best superpermutation
+                        with open(f"best_superpermutation_n{current_n}.txt", "w") as f:
+                            f.write(best_known_superpermutation)
+
+                        # Create new constraint laminate
+                        constraint_laminates = []
+                        constraint_laminates.append(laminate.create_constraint_laminate(best_known_superpermutation, current_n, current_n - 1))
+                        constraint_laminates.append(laminate.create_constraint_laminate(best_known_superpermutation, current_n, current_n - 2))
+                        last_improvement_iteration = 0 #Reset
+
+                    else: #Still valid, but not shorter
+                        if current_n < 8: #If less than 8, save, for data for higher n
+                            with open(f"distinct_superpermutations_n{current_n}.txt", "a") as f:
+                                f.write(normalize_sequence(hypothetical_sp) + "\n") #Save distinct, for use by other n values.
+                        last_improvement_iteration += 1
+                    break  # Exit inner loop if valid
+                else:
+                    logging.info(f"Generated superpermutation is not valid (length: {length}).")
+                    last_improvement_iteration += 1 # Track anyway
+
+                # 6. Reconfiguration (periodically)
+                if len(hypothetical_sp) > 0 and len(hypothetical_sp) < best_known_length:
+                  reconfigured_sp = reconfigure_superpermutation(hypothetical_sp,current_n, winners, losers, layout_memory, laminates, anti_laminates)
+                  if reconfigured_sp:
+                      hypothetical_sp = reconfigured_sp #Use new, if it exists.
+
+                # --- Check for Stagnation ---
+                if last_improvement_iteration > 20:  # Example: If no improvement after 20 iterations
+                    logging.warning("Algorithm might be stuck.  Consider restarting or adjusting parameters.")
+                    stuck_count += 1
+                    if stuck_count > 5:
+                        #We should consider stopping here, or taking more drastic measures.
+                        return None
+                else:
+                    stuck_count = 0
+
+            # --- Prepare Data for Next n ---
+            if current_n < n: #If not at the target
+                logging.info(f"Preparing data for n = {current_n + 1}")
+                # Extract and save all relevant data to be carried over
+                # to the next n value.  This includes:
+                # - The best superpermutation found (for seeding)
+                # - The current winners/losers (adapted for n+1)
+                # - The current layout memory (adapted for n+1)
+                # - The current prodigals (extended to n+1 where possible)
+                # - The current laminates and anti-laminates (adapted for n+1)
+                #Save all to file, to act as a "seed" for the next value.
+                pass
+
+    return best_known_superpermutation
+
+def select_strategy(n, config, laminates, anti_laminates):
+    """Selects a superpermutation generation strategy based on the configuration and current state."""
+    available_strategies = list(config["generation_strategies"].keys())
+    strategy_weights = list(config["generation_strategies"].values())
+
+    # Example of dynamic strategy selection based on laminate density/connectivity:
+    if laminates:  # Use the first laminate for analysis, for now
+        laminate_density = analyze_laminate_density(laminates[0])
+        laminate_connectivity = analyze_laminate_connectivity(laminates[0])
+
+        # Adjust strategy weights based on laminate properties (example)
+        if laminate_density < 0.1:
+            # If laminate is sparse, increase weight for exploratory strategies
+            strategy_weights[available_strategies.index("random_constrained")] *= 2
+            strategy_weights[available_strategies.index("de_bruijn")] *= 1.5
+        elif laminate_connectivity > 0.8:
+            # If laminate is highly connected, increase weight for strategies that exploit structure
+            strategy_weights[available_strategies.index("prodigal_combination")] *= 2
+            strategy_weights[available_strategies.index("n_minus_1_shell")] *= 1.5
+
+        # Normalize weights (important!)
+        total_weight = sum(strategy_weights)
+        normalized_weights = [w / total_weight for w in strategy_weights]
+    else:  # Default weights,
+      total_weight = sum(strategy_weights)
+      normalized_weights = [w / total_weight for w in strategy_weights]
+    strategy = random.choices(available_strategies, weights=normalized_weights)[0]
+    return strategy
+	
+	Explanation of Changes and Key Functions:
+
+construct_superpermutation(n, config):
+
+This is now the main entry point. It handles the iterative n-building process.
+It takes a configuration dictionary (config) as input, which allows for easy customization of parameters and strategies.
+It starts from n=1 and builds up to the target n.
+For n <= 5, it uses the direct generation (generate_n_minus_1_superpermutation).
+For n >= 6, it enters the main construction loop, which includes:
+Strategy selection (dynamic, based on laminate analysis).
+Hypothetical superpermutation generation (generate_hypothetical_superpermutation).
+Bouncing Batch testing (simplified, without multiprocessing for now – this can be added back later).
+Data update and analysis.
+Periodical reconfiguration.
+Termination condition (valid superpermutation found or maximum iterations reached).
+It saves the best superpermutation found for each n.
+It prepares data for next n.
+generate_hypothetical_superpermutation(...):
+
+This function now acts primarily as a dispatcher to different generation strategies.
+The "n_minus_1_shell" strategy is the primary strategy. It calls:
+select_n_minus_1_segments(...): To select appropriate segments from n-1 superpermutations.
+insert_n_plus_1(...): To insert the nth symbol into the segments.
+connect_segments(...): To connect the extended segments using bridge sequences.
+The other strategies ("prodigal_combination", "de_bruijn", "mutation") are still present, but are used with lower probability (or as supporting strategies within the "n_minus_1_shell" approach).
+Helper Functions (within construct.py):
+
+select_n_minus_1_segments(...): Implemented. Selects n-1 segments based on prodigal status, extensibility, and other criteria.
+connect_segments(...): Implemented (placeholder - simple concatenation for now). This is where the bridge generation logic will be crucial.
+generate_candidates(...) and calculate_score(...) are retained and used by the various generation strategies.
