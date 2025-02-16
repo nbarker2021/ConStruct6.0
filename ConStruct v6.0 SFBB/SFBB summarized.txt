@@ -1,0 +1,477 @@
+Superpermutation Finder and Builder Bible (ConStruct v6.0)
+
+Version: 6.0
+Date: October 30, 2023
+Authors: [Your Name(s) and Affiliations], Bard (Google AI - as a collaborative tool)
+
+Table of Contents:
+
+Introduction
+
+1.1. What is a Superpermutation?
+1.2. The Superpermutation Problem
+1.3. Project Goals
+1.4. Current Status (n=6, n=7, n=8, n=9)
+1.5. Project History (Brief Summary of v1.0 - v5.0)
+1.6. ConStruct v6.0 Overview
+Mathematical Background
+
+2.1. Permutations
+2.2. Factorials
+2.3. Overlap
+2.4. Theoretical Lower Bound
+2.5. De Bruijn Graphs
+2.6. Hamiltonian Paths and Eulerian Paths
+2.7. The Golden Ratio (φ) and Pi (π)
+2.8. Combinatorial Optimization
+2.9. Graph Theory
+2.10. Information Theory (Briefly)
+2.11. Dimensionality and Curvature (Conceptual)
+2.12. Principle of Least Action (Analogy)
+Core Concepts and Data Structures
+
+3.1. Imperfect Transitions
+3.2. Prodigal Results
+3.3. MegaWinners and MegaLosers
+3.4. Winners and Losers (WL_PUT)
+3.5. Limbo List
+3.6. Layout Memory
+3.7. Laminates and Anti-Laminates
+3.8. Constraint Laminate
+3.9. ePUT (Deprecated in v6.0)
+3.10. Bouncing Batch
+3.11. n-1 Shell Construction
+3.12. Extensibility Score
+3.13. Breakpoints
+3.14. Action Function
+3.15. Formula Definitions (I(n), C(n), Segment Length)
+3.16 De Bruijn Graph Analysis
+Algorithm: ConStruct (v6.0)
+
+4.1. Overview (Constructive Approach)
+4.2. Initialization
+4.3. Main Construction Loop
+4.3.1. n-1 Segment Selection
+4.3.2. n-Symbol Insertion (insert_n_plus_1)
+4.3.3. Bridging
+4.3.4. Bouncing Batch Testing
+4.3.5. Data Aggregation and Update
+4.3.6. Reconfiguration (Local Optimization)
+4.3.7. Formula Refinement
+4.3.8. Dynamic Strategy Selection
+4.3.9. Termination Condition
+4.4. Completion (if necessary)
+4.5. Multi-Processing
+4.6 Dynamic Data Updates
+Code Structure and Files
+
+5.1. construct.py
+5.2. analysis.py
+5.3. utils.py
+5.4. graph.py
+5.5. laminate.py
+5.6. prodigal.py
+5.7. formulas.py
+5.8. evaluator.py
+5.9. data_manager.py
+5.10. config.py
+Running the Code
+
+6.1. Prerequisites
+6.2. Setup
+6.3. Execution
+Results
+
+7.1. n=6 Results
+7.2. n=7 Results
+7.3. n=8 Results
+7.4. Formula Performance
+Future Work
+
+8.1. Algorithm Refinements
+8.2. Formula Development
+8.3. Theoretical Analysis
+8.4. Scaling to n=9 and Beyond
+8.5. Machine Learning Integration (Conceptual)
+8.6. Alternative Representations
+Conceptual Tools
+
+Think Tank
+Assembly Line
+MORSR
+Wave Pool
+Snapshots, Movies, Songs
+Whirlpool
+DTT
+Appendix:
+*   Formula Variations (Detailed List)
+*   Glossary of Terms
+
+1. Introduction
+
+1.1. What is a Superpermutation?
+
+A superpermutation on n symbols is a string that contains all permutations of those n symbols as substrings.  For example, if n = 3 and we use the symbols {1, 2, 3}, a possible superpermutation is "123121321". This string contains all 3! = 6 permutations: 123, 231, 312, 132, 321, and 213.  Note that the permutations can (and usually do) overlap.
+
+1.2. The Superpermutation Problem
+
+The superpermutation problem asks: What is the shortest possible length of a superpermutation for a given n? This minimal length is denoted as SP(n).  Finding minimal superpermutations is a computationally challenging problem (NP-hard) for larger values of n.
+
+1.3. Project Goals
+
+This project aims to:
+
+Develop efficient algorithms for constructing superpermutations for various values of n, with a primary focus on n=8 and the potential for extending to n=9.
+Find (or approximate) minimal superpermutations, particularly for n=8, where the minimal length is unknown.
+Gain a deeper understanding of the mathematical structure of superpermutations.
+Develop and refine formulas that predict key properties of superpermutations, such as their length, the number of imperfect transitions, and optimal segment lengths.
+Explore new concepts.
+1.4. Current Status (October 29, 2023 - v6.0 Design)
+
+n=6: Minimal superpermutations (length 872) are easily generated. The algorithm is used to explore variations and gather data, and also try to find a shorter sequence.
+n=7: Minimal superpermutations (length 5906) are consistently and rapidly generated. The algorithm is used to generate a large, diverse set of minimal solutions.
+n=8: The algorithm has found a valid superpermutation of length 25,478,467,595, establishing a new record. Further optimization is ongoing.
+n=9: Preliminary planning and design for extending the algorithm to n=9 is underway.
+1.5. Project History (Brief Summary of v1.0 - v5.0)
+
+This project has evolved through multiple versions, each incorporating new ideas and techniques:
+
+v1.0: Initial implementation, Dynamic Prodigal Assembly, basic winner/loser, layout memory.
+v2.0: Introduction of hypothetical prodigals, De Bruijn graph analysis, code organization improvements.
+v3.0: Further code refinement, focus on iterative runs and data persistence.
+v4.x: Major advancements: Bouncing Batch methodology, multiprocessing, anti-prodigals, anti-laminates, lookahead, dynamic strategy selection, n-1 seeding, constraint laminate, MegaWinners/MegaLosers, formula development, a dedicated n=6 search tool, reconfiguration, completion algorithm.
+v5.0: Refinement of all existing features, integration of completion and reconfiguration, enhanced De Bruijn graph usage, improved prodigal management, dynamic n-7 data integration, initial "mutation" strategy, extensive DTT testing, focus on formula refinement (especially I(n)), "n-7 shell" strategy.
+1.6. ConStruct v6.0 Overview
+
+ConStruct v6.0 represents a significant redesign and refactoring of the superpermutation solver. It's based on a "constructive" approach, where superpermutations are built from the ground up using a combination of:
+
+n-1 Shell Strategy: Leveraging the structure of known minimal superpermutations for n-1.
+Prodigal-Centric Construction: Prioritizing the use of highly efficient subsequences (prodigals and MegaWinners).
+Data-Driven Decisions: Making all construction choices based on accumulated data (winners/losers, layout memory, laminates, anti-laminates, De Bruijn graph properties, formula predictions).
+Bouncing Batch Framework: Using the Bouncing Batch for parallel processing and information exchange.
+Targeted Optimization: Focusing on optimizing imperfect transitions and "bridging" sequences.
+2. Mathematical Background
+
+2.1. Permutations
+
+A permutation of n symbols is an ordered arrangement of those symbols.  For example, (1, 2, 3) and (3, 1, 2) are two different permutations of the symbols 1, 2, and 3.  The number of distinct permutations of n symbols is given by n! (n factorial).
+
+2.2. Factorials
+
+The factorial of a non-negative integer n, denoted by n!, is the product of all positive integers less than or equal to n. For example:
+
+5! = 5 * 4 * 3 * 2 * 1 = 120
+0! = 1 (by definition)
+The factorial function grows very rapidly.
+
+2.3. Overlap
+
+The overlap between two strings is the length of the longest suffix of the first string that is also a prefix of the second string. For example:
+
+overlap("1234", "3456") = 2 ("34")
+overlap("ABCDE", "DEFG") = 0
+overlap("AAAA", "AAAA") = 3
+In the context of superpermutations, we're interested in the overlap between consecutive permutations.  Maximizing overlap is the key to minimizing the overall length of the superpermutation.
+
+2.4. Theoretical Lower Bound
+
+A theoretical lower bound for the length of a minimal superpermutation on n symbols is given by:
+
+SP(n) >= n! + (n-1)! + (n-2)! + ... + 1!
+
+This bound is based on the assumption of maximal overlap (n-1) between all consecutive permutations. This lower bound is known to be tight (achievable) for n <= 5.  For n >= 6, the lower bound is not tight.
+
+2.5. De Bruijn Graphs
+
+A De Bruijn graph of order k over an alphabet A is a directed graph that represents overlaps between sequences of length k from that alphabet.
+
+Nodes: Each node in the graph represents a sequence of length k-1.
+Edges: A directed edge connects node u to node v if the last k-2 characters of u are the same as the first k-2 characters of v. The edge essentially represents the k-mer formed by concatenating u and the last character of v.
+In the context of superpermutations:
+
+We use De Bruijn graphs where the nodes are (n-1)-mers (or sometimes (n-2)-mers) drawn from valid n-permutations.
+The edges represent potential transitions between permutations with an overlap of n-2 (or n-3).
+A superpermutation corresponds to a path in the De Bruijn graph that traverses a specific set of edges related to valid permutations.
+2.6. Hamiltonian Paths and Eulerian Paths
+
+Hamiltonian Path: A path in a graph that visits each node exactly once. Finding a minimal superpermutation is equivalent to finding a Hamiltonian path in the permutation graph (where nodes are permutations and edges represent overlaps). The permutation graph is very dense, and finding a Hamiltonian Path is computationally hard.
+Eulerian Path: A path in a graph that traverses each edge exactly once. Standard De Bruijn graphs (constructed from all possible k-mers over an alphabet) have Eulerian paths, which correspond to De Bruijn sequences.
+2.7. The Golden Ratio (φ) and Pi (π)
+The golden ratio (φ ≈ 1.618) is an irrational number that appears in many mathematical and natural contexts, often associated with optimal proportions and self-similar structures. It is defined as:
+
+φ = (1 + √5) / 2
+
+Pi is also a useful constant.
+
+2.8. Combinatorial Optimization
+
+The superpermutation problem is a combinatorial optimization problem.  We're trying to find the best arrangement (the shortest superpermutation) from a finite (but very large) set of possibilities, subject to certain constraints (containing all permutations).
+
+2.9. Graph Theory
+
+Graph theory provides a powerful framework for analyzing the relationships between permutations and k-mers. Key concepts include:
+
+Connectivity: How well-connected a graph is (node degree, connected components, etc.).
+Cycles: Closed paths in a graph.
+Paths: Sequences of connected nodes.
+Minimum Cut: The minimum number of edges that need to be removed to disconnect the graph.
+Clustering Coefficient, Modularity: How clustered the graph is.
+2.10. Information Theory (Briefly)
+
+Information theory provides concepts like:
+
+Entropy: A measure of the "randomness" or "uncertainty" of a system.
+Kolmogorov Complexity: The length of the shortest computer program that can generate a given string.
+Compression: Superpermutations can be seen as compressions of data.
+2.11. Dimensionality and Curvature (Conceptual)
+
+The idea is that for n <= 5, superpermutations can be represented as essentially "linear" (1D) structures. For n >= 6, a "curvature" or higher-dimensionality emerges, making the problem significantly more complex.  This is related to the appearance of "imperfect transitions."
+
+2.12. Principle of Least Action (Analogy)
+
+In physics, the Principle of Least Action states that a system evolves along the path that minimizes a quantity called "action."  We're using this as an analogy, defining an "action" function for superpermutations that quantifies their "inefficiency."
+
+3. Core Concepts and Data Structures
+
+3.1. Imperfect Transitions
+An imperfect transition occurs when two consecutive permutations in a superpermutation have an overlap less than the maximum possible overlap (n-1). These transitions are necessary for n >= 6, and their number and distribution are crucial for understanding superpermutation structure.
+The current best formula for estimating the number of imperfect transitions is:
+I(n) = round(((factorial(n-1) - factorial(n-2)) / (n * 2) - (n - 5)) * (1.33 + 0.01 * (n-6)) + (imbalance(n-1) - 2) * 5.5)
+
+3.2. Prodigal Results
+A "Prodigal Result" is a subsequence within a superpermutation (or a candidate superpermutation) that exhibits a high overlap rate. Prodigals are considered "efficient" building blocks. They have a minimum length and a minimum overlap threshold.
+
+3.3. MegaWinners and MegaLosers
+MegaWinners and MegaLosers are longer sequences (longer than typical k-mers, but potentially shorter than prodigals) that are consistently associated with high/low efficiency. They are identified by analyzing the winner/loser scores of their constituent k-mers.
+
+3.4. Winners and Losers (WL_PUT)
+"Winners" and "losers" are k-mers (typically of length n-1 and n-2) that are statistically more or less frequent in shorter/longer superpermutations, respectively. They are stored in a combined dictionary where the keys are tuples of the form (n, kmer) and the values are weights (positive for winners, negative for losers).
+
+3.5. Limbo List
+The Limbo List is a set of k-mers or permutations that are to be avoided during candidate generation. These are typically associated with high-weight losers or anti-prodigals.
+
+3.6. Layout Memory
+
+3.7. Laminates and Anti-Laminates
+
+Laminates and anti-laminates are crucial components of the ConStruct algorithm, providing a powerful mechanism for representing and enforcing constraints on the allowed transitions between permutations (or, more precisely, between k-mers within permutations). They act as "filters" during candidate generation, significantly reducing the search space and guiding the algorithm towards more efficient superpermutations.
+
+3.7.1. Core Concepts:
+
+Laminate (Positive Constraint): A directed graph where:
+Nodes: Represent (n-1)-mers (or (n-2)-mers, depending on the k value used). These are substrings of valid n-permutations.
+Edges: Represent allowed transitions between these (n-1)-mers. An edge from kmer1 to kmer2 means that the sequence kmer1 + kmer2[-1] (which forms an n-permutation) is considered "good" or "desirable" based on some criteria.
+Anti-Laminate (Negative Constraint): A directed graph where:
+Nodes: Also represent (n-1)-mers (or (n-2)-mers).
+Edges: Represent disallowed transitions. An edge from kmer1 to kmer2 means that the sequence kmer1 + kmer2[-1] is considered "bad" or "undesirable." Crucially, the anti-laminate is used to actively prevent the generation of sequences containing these transitions.
+Constraint Laminate: A special type of laminate created from the current best known superpermutation. This enforces a hard length constraint by only allowing transitions that are present in the best known solution. It's dynamically updated whenever a shorter superpermutation is found.
+k-Value: Laminates and anti-laminates can be constructed for different k values (typically n-1 and n-2). This allows for controlling the granularity of the constraints.
+Dynamic Updates: Both laminates and anti-laminates are dynamically updated throughout the superpermutation construction process. New laminates are created from newly discovered prodigals, and anti-laminates are created from anti-prodigals and by analyzing "loser" sequences.
+Weighted Laminates: The edges can have weights, representing the desirability.
+3.7.2. Why Use Laminates?
+
+Constraint Propagation: Laminates propagate constraints locally. If a particular transition between two k-mers is disallowed, then any permutation containing that transition is automatically excluded. This is much more efficient than checking for the presence of entire "bad" sequences.
+Encoding Knowledge: Laminates encode knowledge about "good" and "bad" superpermutation structures in a compact and easily accessible form.
+Flexibility: The laminate system is flexible. We can create laminates from different sources (minimal superpermutations, prodigals, etc.) and combine them in different ways.
+Efficiency: Checking for laminate compatibility (is_compatible function) is relatively fast, especially compared to generating and then filtering a large number of candidate permutations.
+3.7.3. Data Representation:
+
+Laminates and anti-laminates are implemented as networkx.DiGraph objects. This allows for efficient graph operations (checking for edge existence, finding neighbors, etc.).
+Nodes are represented as strings of digits (representing the (n-1)-mers or (n-2)-mers).
+Edges represent allowed (laminate) or disallowed (anti-laminate) transitions.
+The program maintains a dictionary of laminates and anti-laminates, keyed by tuples (n, k), representing the n value and the k-mer length.
+3.7.4. Key Functions (laminate.py):
+
+create_laminate(sequence, n, k): Creates a laminate (positive constraint graph) from a given sequence (string of digits). Adds edges for all valid k-mer transitions within the sequence.
+create_anti_laminate(anti_prodigals, n, k): Creates an anti-laminate (negative constraint graph) from a set of "anti-prodigal" sequences. It starts with a complete graph (all possible transitions) and then removes edges corresponding to the anti-prodigal k-mers.
+is_compatible(permutation, laminate, n, k): Checks if a given permutation (tuple of integers) is compatible with a given laminate (or anti-laminate). This involves checking if all the (n-1)-mer and (n-2)-mer transitions within the permutation are present (for a laminate) or absent (for an anti-laminate) in the graph.
+validate_laminate(laminate, n, k, laminate_type, winners, losers, layout_memory, anti_prodigals): Performs validation checks on a laminate, both structural (node and edge validity) and contextual (consistency with winners/losers, layout memory, and anti-prodigals). Returns a validation score.
+merge_laminates(laminates, method): Merges multiple laminates into a single laminate, using different merging strategies ("intersection," "union," "weighted_average").
+update_laminate(laminate, sequences, n, k, type): Updates a dynamic laminate, adding, or removing, data based on provided sequences.
+analyze_laminate_density(laminate): Calculates the density of a laminate graph.
+analyze_laminate_connectivity(laminate): Calculates connectivity measures for a laminate graph.
+get_allowed_transitions(laminate, kmer): Returns a list of allowed transitions from a given k-mer, based on the laminate.
+create_n7_constraint_laminate(sequence, n, k): Creates a constraint laminate from an n=7 sequence. (Generalized to create_constraint_laminate).
+Laminate Album:
+add_laminate_to_album(laminate, n, k, source, description, metadata=None): Adds a laminate to the "laminate album," along with metadata.
+select_laminates(n, k, task, context, all_laminates): Selects a subset of laminates from the album based on the current task and context. This is a crucial function for managing the complexity of using multiple laminates.
+remove_laminate_from_album(laminate_id): Removes a laminate from the album.
+list_laminates(): Lists the available laminates.
+3.7.5. Usage within the Algorithm:
+
+Candidate Generation (generate_candidates): Laminates and anti-laminates are used as hard filters. Only permutations that are compatible with the selected laminates and anti-laminates are considered as candidates. This drastically reduces the search space.
+Hypothetical Superpermutation Generation (generate_hypothetical_superpermutation): All generation strategies use laminates.
+calculate_score: Anti-laminate violations can be penalized (although this is less critical now that filtering is done during candidate generation). Laminate compatibility could be rewarded, but the filtering is more important.
+Bouncing Batch: The Bouncing Batch process updates local laminates and anti-laminates within each cell, based on the candidates tested in that cell. These local laminates are then "bounced" (merged) to share information between cells.
+3.7.6. Dynamic Laminate Selection (select_laminates):
+
+The select_laminates function is key to the dynamic use of laminates.  It chooses which laminates from the "album" to use for a given task, based on:
+
+n and k: Selects laminates that are relevant to the current n and k values.
+task: Different tasks might require different types of laminates (e.g., "generation" vs. "completion").
+context: The current state of the search (e.g., the current partial superpermutation, the number of missing permutations).
+source: Prioritizes laminates from trusted sources (minimal superpermutations, high-quality prodigals).
+creation_date: Potentially favors more recent laminates (assuming they are based on better data).
+Validation Score: Uses the validate_laminate function to score the laminates and select those that are most consistent with the current winner/loser data, layout memory, and anti-prodigals.
+Diversity: Selects a diverse set of laminates to avoid over-constraining the search.
+3.7.7. "Bouncing" Laminates:
+
+The "bouncing" of laminates between cells in the Bouncing Batch is a mechanism for sharing information and propagating constraints.  The merge_laminates function provides different ways to combine laminates (intersection, union, weighted average).
+
+This completes the detailed description of the Laminates and Anti-Laminates system within ConStruct v6.0. It is a core component of the algorithm, providing a powerful and flexible way to encode and enforce constraints, guide the search, and leverage accumulated knowledge.
+
+3.8. ePUT (Deprecated in v6.0)
+
+The Enhanced Permutation Universe Tracker (ePUT) was used in earlier versions to track all encountered permutations. In v6.0, with the focus on constructive methods and length constraints, this is less critical and has been removed for efficiency.
+
+3.9. Bouncing Batch
+
+The Bouncing Batch methodology is a parallel processing framework.  The permutation space is conceptually divided into cells (in a multi-dimensional grid).  Candidate superpermutations are tested, and the results (winners/losers, layout information, anti-prodigals) are "bounced" between neighboring cells. This allows for distributed computation and information sharing. For n=8, a 2<sup>8</sup> grid is used initially.  For higher n, a hierarchical or adaptive grid structure might be needed.
+
+3.10. n-1 Shell Construction
+
+This is the primary construction strategy for v6.0. It involves:
+
+Selecting Segments: Choosing a set of segments from known minimal superpermutations for n-1. These segments are typically prodigals or sequences between imperfect transitions.
+Inserting the nth Symbol: Strategically inserting the nth symbol into each segment to create valid n-permutations. This is done by the insert_n_plus_1 function, which uses all available data (winners/losers, layout, laminates, anti-laminates, De Bruijn graph) to guide the insertion process.
+Connecting Segments: Finding short, efficient "bridge" sequences to connect the extended segments, again using all available data and constraints.
+3.11. Extensibility Score
+
+A score assigned to sequences (particularly prodigals) that estimates how easily they can be extended to higher n values. This is based on analyzing the sequence's potential for overlap with (n+1)-permutations, its winner/loser density in the (n+1) context, and its compatibility with (n+1) laminates and anti-laminates.
+
+3.12. Breakpoints
+
+Positions within a sequence (typically a prodigal) where an imperfect transition (non-maximal overlap) occurs, or is likely to occur when the sequence is used within a larger superpermutation.  These are identified by the analyze_prodigal function.
+
+3.13. Action Function
+
+A function that quantifies the "inefficiency" or "cost" of a superpermutation (or a partial superpermutation). It combines multiple factors, including:
+
+Deviation from maximal overlap.
+Winner/loser density.
+Layout memory inconsistency.
+Anti-laminate violations.
+Discrepancy from predicted length (based on formulas).
+"Curvature" (currently based on De Bruijn graph imbalance).
+Extensibility score.
+The goal of the algorithm is to minimize the action.
+
+3.14. Formula Definitions (I(n), C(n), Segment Length)
+
+I(n): The predicted number of imperfect transitions in a minimal superpermutation of order n. This is a crucial formula that is being continuously refined. Current best:
+I(n) = round(((factorial(n-1) - factorial(n-2)) / (n * 2)  - (n - 5)) * (1.33 + 0.01 * (n-6)) + (imbalance(n-1) - 2) * 5.5)
+C(n): The "correction term," representing the difference between the simple additive formula for superpermutation length (n! + SP(n-1)) and the actual minimal length. It's hypothesized to be closely related to I(n).
+Optimal Segment Length: A formula that predicts the ideal length of segments (prodigals) for constructing superpermutations. Currently best:
+ segment_length_best(n) = (n / φ) * (1 + 0.1 * I(n))
+3.15 De Bruijn Graph Analysis
+
+Using the De Bruijn graph to identify and analyze weak points.
+4. Algorithm: ConStruct (v6.0)
+
+4.1. Overview (Constructive Approach)
+
+ConStruct v6.0 employs a constructive approach to building superpermutations. It starts from n=1 and iteratively builds up to the target n value.  The primary construction method is the "n-1 shell" strategy, where segments from n-1 superpermutations are extended and connected to form n-superpermutations. The algorithm heavily leverages all accumulated data (prodigals, winners/losers, layout memory, laminates, anti-laminates, De Bruijn graph analysis, and formulas) to guide the construction process and minimize inefficiencies.
+
+4.2. Initialization
+
+Load configuration parameters from config.py (including the target n value).
+Initialize empty data structures (winners, losers, layout_memory, prodigal_manager, laminate album, anti_laminates).
+4.3. Main Construction Loop
+
+for current_n in range(1, n + 1):
+    # --- Data Loading/Initialization (for current_n) ---
+    #   - If current_n > 1, use data from current_n-1 to initialize:
+    #       -  n-1 superpermutations as seeds and for prodigal extraction
+    #       -  Winners/Losers (transfer and adapt)
+    #       -  Layout memory (transfer and adapt)
+    #       -  Laminates and Anti-Laminates (transfer, adapt, and create constraint laminate)
+    # ... (Implementation for loading/initialization) ...
+
+    if current_n <= 5:
+        # --- Base Cases (n <= 5) ---  Use direct generation
+        superpermutation = generate_n_minus_1_superpermutation(current_n, seed) # Use existing function
+        # ... (Analyze superpermutation, update data structures) ...
+        #Save all data using data_manager.py functions
+    else:
+        # --- Main Construction Loop (n >= 6) ---
+          # Set best_known_length and constraint_laminate, if applicable
+        while True:  # Continue until a valid superpermutation is found or max iterations reached
+            # 1. Select a Strategy (dynamically, based on config and current state)
+            strategy = select_strategy(config, laminates, anti_laminates) # Implemented
+
+            # 2. Generate Hypothetical Superpermutation
+            hypothetical_sp = generate_hypothetical_superpermutation(current_n, strategy, prodigal_manager,
+                                                                    winners, losers, layout_memory,
+                                                                    best_known_length, config["seed"],
+                                                                    laminates, anti_laminates,
+                                                                    constraint_laminates)
+
+            if not hypothetical_sp:
+                logging.warning(f"Hypothetical generation failed (strategy: {strategy}).")
+                continue  # Try again with a different strategy/seed
+
+            # 3. Bouncing Batch Test
+            is_valid, length, winners, losers, _ = bouncing_batch_test(
+                hypothetical_sp, current_n, config["grid_dimensions"], prodigal_manager,
+                config["layout_memory_filename"], anti_laminates, constraint_laminates, winners, losers
+            )
+
+            # 4. Data Update and Analysis
+            #  - Update winners/losers, layout memory, prodigal_manager, anti_laminates
+            #  - Analyze imperfect transitions, update formulas, etc.
+            #  - Identify new prodigals and anti-prodigals
+            #  - Identify new MegaWinners and MegaLosers
+
+            # 5. Check for Completion and Validity
+            if is_valid:
+                if length < best_known_length:
+                    best_known_length = length
+                    logging.info(f"New best superpermutation found for n={current_n}! Length: {length}")
+                    # ... (Save the new best superpermutation) ...
+                    #Create new contraint laminate
+
+                # ... (Save superpermutation, analyze, etc.) ...
+
+                break # Exit inner loop, move to n+1
+            else:
+                logging.info(f"Generated superpermutation is not valid (length: {length}).")
+                continue
+                #Check if we should run reconfiguration
+
+    #Save all data.
+    #Prepare all data for next n value.
+4.3.1. n-1 Segment Selection: Select a set of segments.
+4.3.2. n-Symbol Insertion: Insert.
+4.3.3. Bridging: Generate bridges.
+4.3.4. Bouncing Batch Testing: Test.
+4.3.5. Data Aggregation and Update: Update.
+4.3.6. Reconfiguration (Local Optimization): Optimize.
+4.3.7. Formula Refinement: Refine.
+4.3.8. Dynamic Strategy Selection: Dynamically choose strategy.
+4.3.9. Termination Condition: n value, and complete.
+
+4.4. Completion (if necessary):
+If the main loop does not create a complete result, run an optimized completion.
+
+4.5. Multi-Processing:
+
+The Bouncing Batch testing is parallelized using multiprocessing.  The worker_task function handles the testing of a single hypothetical superpermutation against a subset of the cells in the grid.
+
+4.6 Dynamic Data Updates:
+Continually updated as the algorithm runs.
+
+5. Code Structure and Files:
+Described Previously
+
+6. Running the Code:
+Described Previously
+
+7. Results (Expected):
+Described Previously. Note, we will get better n values as the algorithm proceeds.
+
+8. Conceptual Tools:
+
+Provided Earlier.
+9. Formulas
+
+Provided in formulas.py
